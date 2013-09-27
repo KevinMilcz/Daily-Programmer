@@ -14,8 +14,10 @@ import java.util.regex.Pattern;
 
 public class WikiBrowser {
 	static String urlBase = "http://en.wikipedia.org/wiki/";
+	static Pattern linkPat = Pattern.compile("<a href=\"(.*?)\"", Pattern.DOTALL);
+	static Pattern paraPat = Pattern.compile("<p>(.*?)</p>", Pattern.DOTALL);
 	
-	public class WebPage {
+	public class WebPage {		
 		String name;
 		String pageData;
 	
@@ -30,22 +32,7 @@ public class WikiBrowser {
 		
 		/*Needs name of page to work */
 		public String findFirstLink(){
-			//Pattern linkPat = Pattern.compile("(?<!\\([^\\)]{10})<a href=\"(.*?)\"(?![^\\(]*\\))", Pattern.DOTALL);
-			Pattern linkPat = Pattern.compile("<a href=\"(.*?)\"", Pattern.DOTALL);
-			//Pattern parenLinkPat = Pattern.compile("\\(.*?<a href=\"(.*?)\".*?\\)",Pattern.DOTALL);
-			Pattern paraPat = Pattern.compile("<p>(.*?)</p>", Pattern.DOTALL);
 			String link = "", paragraph;
-
-			/*
-			 * http://stackoverflow.com/questions/9030036/regex-to-match-only-commas-not-in-parentheses
-					Pattern regex = Pattern.compile(
-			    ",         # Match a comma\n" +
-			    "(?!       # only if it's not followed by...\n" +
-			    " [^(]*    #   any number of characters except opening parens\n" +
-			    " \\)      #   followed by a closing parens\n" +
-			    ")         # End of lookahead", 
-			    Pattern.COMMENTS);
-			*/
 			
 			Matcher m = paraPat.matcher(pageData);
 			m.reset();
@@ -53,17 +40,24 @@ public class WikiBrowser {
 			
 			paragraph = m.group(1);
 			
-			/*Strip all content within parens out */
+			/*Strip all content not in quotes but within parentheses*/
 			int parenCount = 0, firstParen = paragraph.length()-1, lastParen = 0;
 			StringBuilder sb = new StringBuilder();
+			boolean inQuotes = false;
 			for(int i = 0; i < paragraph.length(); ++i)
 			{
-				Allow _
-				if((paragraph.charAt(i) == '(') && !( paragraph.charAt(i-1) == '_')){
+				if((paragraph.charAt(i) == '\"'))
+				{
+					inQuotes = !inQuotes;
+				}
+				
+				if((paragraph.charAt(i) == '(') && !inQuotes)
+				{
 					parenCount++;
 					firstParen = i;
 				}
-				else if(paragraph.charAt(i) == ')')
+
+				if(paragraph.charAt(i) == ')' && !inQuotes)
 				{
 					if(--parenCount == 0)
 					{
@@ -74,6 +68,7 @@ public class WikiBrowser {
 					}
 				}	
 			}
+			
 			sb.append(paragraph.substring(lastParen, firstParen));
 			
 			paragraph = sb.toString();
@@ -81,9 +76,8 @@ public class WikiBrowser {
 			
 			while(m.find())
 			{
-		
-				/* Ignore help pages, files and self links */
-				if(!m.group(1).contains("Help") && !m.group(1).contains(".")) {
+				/* Ignore help pages and self links */
+				if(!m.group(1).contains("Help")) {
 					link = m.group(1);
 					link = link.replaceAll("/wiki/", "").trim();
 					if(link.charAt(0) == '#'){
@@ -147,8 +141,8 @@ public class WikiBrowser {
 		Scanner scan = new Scanner(System.in);
 		//String from = scan.nextLine().replaceFirst("From:", "").trim();
 		//String target = scan.nextLine().replaceFirst("To:", "").trim();
-		String target = "Mass";
-		String from = "Knowledge";
+		String target = "Logic";
+		String from = "Food";
 		String link = "";
 		
 		WebPage page = base.new WebPage();
@@ -170,6 +164,9 @@ public class WikiBrowser {
 					page.pageData = urlConnect(urlBase + link);
 					page.findName();
 					link = page.findFirstLink();
+				} else {
+					/* hit a loop :( */
+					break;
 				}
 				
 			}
